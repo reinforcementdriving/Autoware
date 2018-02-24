@@ -49,6 +49,10 @@ data-yby/
 map-pic/
 mapgenerated/
 
+#ros dir
+*/build/
+*/devel/
+
 # Autoware Resources
 *.pcd
 *.bag
