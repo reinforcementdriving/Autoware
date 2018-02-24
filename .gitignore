@@ -41,6 +41,14 @@ env/
 venv/
 ENV/
 
+# data dir
+data-autoware/
+data-rbsense/
+data-velodyne/
+data-yby/
+map-pic/
+mapgenerated/
+
 # Autoware Resources
 *.pcd
 *.bag

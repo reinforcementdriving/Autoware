@@ -1,0 +1,8 @@
+prefix=/home1/liumeng/Autoware/mapMaker_test/devel
+
+Name: mapmaker
+Description: Description of mapmaker
+Version: 0.0.0
+Cflags: 
+Libs: -L/home1/liumeng/Autoware/mapMaker_test/devel/lib 
+Requires: 

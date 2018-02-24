@@ -1,0 +1,2 @@
+mapmaker
+-DCATKIN_DEVEL_PREFIX=/home1/liumeng/Autoware/mapMaker_test/devel -DCMAKE_INSTALL_PREFIX=/home1/liumeng/Autoware/mapMaker_test/install -G Unix Makefiles
