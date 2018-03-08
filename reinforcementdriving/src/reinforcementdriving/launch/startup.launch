@@ -1,0 +1,4 @@
+<launch>
+    <node pkg="ddpg" name="ddpgforselfdriving" type="DDPG.py" output="screen">
+    </node>
+</launch>
