@@ -6,7 +6,7 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /car corners1
+        - /goal points1
       Splitter Ratio: 0.5
     Tree Height: 596
   - Class: rviz/Selection
@@ -191,7 +191,7 @@ Visualization Manager:
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
-      Size (Pixels): 20
+      Size (Pixels): 15
       Size (m): 0.01
       Style: Points
       Topic: /goal_topic
@@ -236,7 +236,7 @@ Visualization Manager:
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
-      Size (Pixels): 30
+      Size (Pixels): 10
       Size (m): 0.01
       Style: Points
       Topic: /car_corners_topic
@@ -276,7 +276,7 @@ Visualization Manager:
         Value: false
       Name: Current View
       Near Clip Distance: 0.01
-      Scale: 5.05901
+      Scale: 26.4909
       Target Frame: <Fixed Frame>
       Value: TopDownOrtho (rviz)
       X: 0
@@ -298,5 +298,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1375
-  X: 65
-  Y: 24
+  X: 55
+  Y: -14

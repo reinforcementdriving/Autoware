@@ -24,6 +24,8 @@ from   geometry_msgs.msg import Twist #steer and speed
 from   sensor_msgs.msg import NavSatFix #GPS position
 from   sensor_msgs.msg import Imu #imu
 
+rospy.init_node( "reinforcement_Driving_node", anonymous = True)
+
 log_dir = "./log/ddpg/"
 np.random.seed(1)
 tf.set_random_seed(1)
@@ -39,11 +41,11 @@ MEMORY_CAPACITY = 1500
 BATCH_SIZE = 16
 VAR_MIN = 1.0 #2.0  #0.1
 RENDER = True
-LOAD   = True 
+LOAD   = False
 #LOAD   = False
 DISCRETE_ACTION = False
 
-env = CarEnv( discrete_action = DISCRETE_ACTION)
+env = CarEnv()
 STATE_DIM = env.state_dim
 ACTION_DIM = env.action_dim
 ACTION_BOUND = env.action_bound
@@ -65,7 +67,7 @@ tf.gfile.MakeDirs(log_dir)
 
 class Actor(object):
     def __init__(self, sess, action_dim, action_bound, learning_rate, t_replace_iter):
-        self.sess = sess
+        self.sess  = sess
         self.a_dim = action_dim
         self.action_bound = action_bound
         self.lr = learning_rate
@@ -76,13 +78,13 @@ class Actor(object):
 
         with tf.variable_scope('Actor'):
             # input s, output a
-            self.a = self._build_net(S, scope='actor_eval_net', trainable=True)
+            self.a = self._build_net(S, scope = 'actor_eval_net', trainable = True)
 
             # input s_, output a, get a_ for critic
-            self.a_ = self._build_net(S_, scope='actor_target_net', trainable=False)
+            self.a_ = self._build_net(S_, scope = 'actor_target_net', trainable = False)
 
-        self.e_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='Actor/actor_eval_net')
-        self.t_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='Actor/actor_target_net')
+        self.e_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = 'Actor/actor_eval_net')
+        self.t_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = 'Actor/actor_target_net')
 
     def _build_net(self, s, scope, trainable):
         with tf.variable_scope(scope):
@@ -95,25 +97,27 @@ class Actor(object):
             net = tf.layers.dense( net, 20, activation = tf.nn.relu,
                                   kernel_initializer = init_w, bias_initializer = init_b, name = 'actor_layer_2',
                                   trainable = trainable)
-            
+
             #tf.summary.histogram('actor_init_w', init_w)
             #tf.summary.histogram('actor_init_b', init_b)
             tf.summary.histogram('actor_init_net', net)
 
             with tf.variable_scope('actions'):
-                actions = tf.layers.dense(net, self.a_dim, activation=tf.nn.tanh, kernel_initializer=init_w, name='actions', trainable=trainable)
-                scaled_a = tf.multiply(actions, self.action_bound, name='scaled_actions')  # Scale output to -action_bound to action_bound
-                
+                actions = tf.layers.dense(net, self.a_dim, activation = tf.nn.tanh, kernel_initializer = init_w, name = 'actions', trainable = trainable)
+                scaled_a = tf.multiply(actions, self.action_bound, name = 'scaled_actions')  # Scale output to -action_bound to action_bound
+
         return scaled_a
 
     def learn(self, s):   # batch update
-        self.sess.run( self.train_op, feed_dict={S: s})
+        self.sess.run( self.train_op, feed_dict = {S: s})
         if self.t_replace_counter % self.t_replace_iter == 0:
             self.sess.run( [tf.assign(t, e) for t, e in zip(self.t_params, self.e_params)] )
         self.t_replace_counter += 1
 
-    def choose_action(self, s): 
+    def choose_action(self, s):
+        #print(s)
         s = s[np.newaxis, :]    # single state
+        print(s)
         return self.sess.run(self.a, feed_dict = {S: s})[0]  # single action
 
     def add_grad_to_graph(self, a_grads):
@@ -126,14 +130,14 @@ class Actor(object):
 
 class Critic(object):
     def __init__(self, sess, state_dim, action_dim, learning_rate, gamma, t_replace_iter, a, a_):
-        self.sess = sess
+        self.sess  = sess
         self.s_dim = state_dim
         self.a_dim = action_dim
-        self.lr = learning_rate
+        self.lr    = learning_rate
         self.gamma = gamma
-        self.t_replace_iter = t_replace_iter
+        self.t_replace_iter    = t_replace_iter
         self.t_replace_counter = 0
-       
+
         self.c_cost = []
         self.c_target_q = []
         self.c_q = []
@@ -161,19 +165,19 @@ class Critic(object):
             tf.summary.histogram("critic_target_q", self.target_q )
 
         with tf.variable_scope('error'):# TD_error
-            self.loss = tf.reduce_mean( tf.squared_difference( self.target_q, self.q))
+            self.loss = tf.reduce_mean(tf.squared_difference(self.target_q, self.q))
             tf.summary.scalar('loss', self.loss)
 
         with tf.variable_scope('critic_train'):
             self.train_op = tf.train.RMSPropOptimizer(self.lr).minimize( self.loss)
 
         with tf.variable_scope('action_gradients'):
-            self.a_grads = tf.gradients( self.q, a)[0]   # tensor of gradients of each sample (None, a_dim)
+            self.a_grads = tf.gradients(self.q, a)[0]   # tensor of gradients of each sample (None, a_dim)
 
     def _build_net(self, s, a, scope, trainable):
-        with tf.variable_scope( scope):
+        with tf.variable_scope(scope):
             init_w = tf.contrib.layers.xavier_initializer()
-            init_b = tf.constant_initializer( 0.01 )
+            init_b = tf.constant_initializer(0.01)
 
             with tf.variable_scope('critic_layer_1'):
                 n_l1 = 100
@@ -181,13 +185,16 @@ class Critic(object):
                 w1_a = tf.get_variable('weight1_action', [self.a_dim, n_l1], initializer=init_w, trainable=trainable)
                 b1  = tf.get_variable('bias1', [1, n_l1], initializer = init_b, trainable = trainable)
                 net = tf.nn.relu6(tf.matmul(s, w1_s) + tf.matmul(a, w1_a) + b1)
-                net = tf.layers.dense(net, 20, activation = tf.nn.relu,
-                                  kernel_initializer = init_w, bias_initializer = init_b, name = 'layer_2',
-                                  trainable = trainable)
+                net = tf.layers.dense(net, 20, 
+                                   activation = tf.nn.relu,
+                                   kernel_initializer = init_w, 
+                                   bias_initializer = init_b, 
+                                   name = 'layer_2',
+                                   trainable = trainable)
 
                 tf.summary.histogram('critic_w1s', w1_s)
                 tf.summary.histogram('critic_w1a', w1_a)
-                tf.summary.histogram('critic_b1', b1)
+                tf.summary.histogram('critic_b1',  b1)
                 tf.summary.histogram('critic_net', net)
 
             with tf.variable_scope('q'):
@@ -229,10 +236,10 @@ actor  = Actor(sess, ACTION_DIM, ACTION_BOUND[1], LR_A, REPLACE_ITER_A)
 critic = Critic(sess, STATE_DIM, ACTION_DIM, LR_C, GAMMA, REPLACE_ITER_C, actor.a, actor.a_)
 actor.add_grad_to_graph(critic.a_grads)
 
-M = Memory( MEMORY_CAPACITY, dims=2 * STATE_DIM + ACTION_DIM + 1)
+M = Memory( MEMORY_CAPACITY, dims = 2 * STATE_DIM + ACTION_DIM + 1)
 
-writer = tf.summary.FileWriter( log_dir, graph=sess.graph)
-merge_op = tf.summary.merge_all() 
+writer = tf.summary.FileWriter( log_dir, graph = sess.graph)
+merge_op = tf.summary.merge_all()
 
 saver = tf.train.Saver()
 path = './discrete' if DISCRETE_ACTION else './continuous'
@@ -244,32 +251,34 @@ else:
     sess.run( tf.global_variables_initializer())
 
 def train():
-    rospy.init_node( "ddpg_node", anonymous = True)
     var = 2.  # control exploration
     max_step = 0
     max_step_episod = 0
     max_step_episod_mark = False
 
     for ep in range( MAX_EPISODES):
-        if max_step == MAX_EP_STEPS:
+        if max_step == MAX_EP_STEPS or rospy.is_shutdown():
             break
 
         s = env.reset()
         ep_step = 0
 
         for t in range( MAX_EP_STEPS):
-            if max_step == MAX_EP_STEPS:
+            if max_step == MAX_EP_STEPS or rospy.is_shutdown():
                break
-            if RENDER:
-                env.render()
-
-            # Added exploration noise
+ 
+            
+           # Added exploration noise
             a = actor.choose_action(s)
             a = np.clip( np.random.normal(a, var), *ACTION_BOUND)    # add randomness to action selection for exploration
             s_, r, done, car_info = env.step(a)
             M.store_transition(s, a, r, s_)
             #if (max_step < MAX_EP_STEPS or M.pointer < MEMORY_CAPACITY):
             #    M.store_transition(s, a, r, s_)
+            if RENDER:
+                env.render()
+
+
 
             if M.pointer >= MEMORY_CAPACITY:
                 var = max([ var * .9995, VAR_MIN])    # decay the action randomness
@@ -281,7 +290,7 @@ def train():
 
                 critic.learn(b_s, b_a, b_r, b_s_, ep)
                 actor.learn(b_s)
-            
+
             s = s_
             ep_step += 1
 
@@ -289,6 +298,7 @@ def train():
             if max_step == MAX_EP_STEPS and max_step_episod_mark == False:
                 max_step_episod = ep
                 max_step_episod_mark = True
+
             rospy.loginfo('Ep:%d, |t:%d, |Steps: %i, |Explore: %.2f, |step_reward:%.2f', ep, t, int(ep_step), var, r)
 
             if done or t == MAX_EP_STEPS - 1:
@@ -302,6 +312,7 @@ def train():
     print("\nSave Model %s\n" %save_path)
     print("\nMax steps: %d\n" %max_step)
     print("Max_step_episod:%d" %max_step_episod)
+
 
 def BLH2XYZ(B,L,H):
     '''B: lat L: lon  H: height'''
