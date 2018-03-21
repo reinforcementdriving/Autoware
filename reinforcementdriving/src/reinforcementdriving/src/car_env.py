@@ -2,6 +2,7 @@
 
 import rospy
 import numpy as np
+import matplotlib.path as mplPath
 #import pyglet
 
 import std_msgs
@@ -70,56 +71,19 @@ class Point:
         self.x = xx
         self.y = yy
 
-#def vect2d(p1 = Point(), p2 = Point()):
-def vect2d(p1 , p2):
-    temp = Point(0,0)
-    temp.x = (p2.x - p1.x)
-    temp.y = -1 * (p2.y - p1.y)
-    return temp
-
-#def pointInRectangle( A = Point(), B = Point(), C = Point(), D = Point(), m = Point()):
 def pointInRectangle( A , B , C , D , m):
+    bbPath = mplPath.Path(np.array([
+                           [A.x, A.y],
+                           [B.x, B.y],
+                           [C.x, C.y],
+                           [D.x, D.y] ]))
+    result = bbPath.contains_point((m.x, m.y))
 
-    AB = vect2d(A, B)
-    C1 = -1 * (AB.y*A.x + AB.x*A.y)
-    D1 = (AB.y*m.x + AB.x*m.y) + C1
-
-    AD = vect2d(A, D)
-    C2 = -1 * (AD.y*A.x + AD.x*A.y)
-    D2 = (AD.y*m.x + AD.x*m.y) + C2
-
-    BC = vect2d(B, C)
-    C3 = -1 * (BC.y*B.x + BC.x*B.y)
-    D3 = (BC.y*m.x + BC.x*m.y) + C3
-
-    CD = vect2d(C, D)
-    C4 = -1 * (CD.y*C.x + CD.x*C.y)
-    D4 = (CD.y*m.x + CD.x*m.y) + C4
-
-    if 0 >= D1 and 0 >= D4 and 0 <= D2 and 0 >= D3:
+    if result:
         return True
     else:
         return False
 
-# euler to quaternion
-# theta:yaw  phi:roll  psi:pitch
-# q = [w,x,y,z]^T
-# w = cos(phi/2.0)*cos(theta/2.0)*cos(psi/2.0) + sin(phi/2.0)*sin(theta/2.0)*sin(psi/2.0)
-# x = sin(phi/2.0)*cos(theta/2.0)*cos(psi/2.0) - cos(phi/2.0)*sin(theta/2.0)*sin(psi/2.0)
-# y = cos(phi/2.0)*sin(theta/2.0)*cos(psi/2.0) + sin(phi/2.0)*cos(theta/2.0)*sin(psi/2.0)
-# z = cos(phi/2.0)*cos(theta/2.0)*sin(psi/2.0) - sin(phi/2.0)*sin(theta/2.0)*cos(psi/2.0)
-
-#def rpy2q(roll, pitch, yaw):
-#    theta = yaw
-#    phi   = roll
-#    psi   = pitch
-
-#    w = math.cos(phi/2.0)*math.cos(theta/2.0)*math.cos(psi/2.0) + math.sin(phi/2.0)*math.sin(theta/2.0)*math.sin(psi/2.0)
-#    x = math.sin(phi/2.0)*math.cos(theta/2.0)*math.cos(psi/2.0) - math.cos(phi/2.0)*math.sin(theta/2.0)*math.sin(psi/2.0)
-#    y = math.cos(phi/2.0)*math.sin(theta/2.0)*math.cos(psi/2.0) + math.sin(phi/2.0)*math.cos(theta/2.0)*math.sin(psi/2.0)
-#    z = math.cos(phi/2.0)*math.cos(theta/2.0)*math.sin(psi/2.0) - math.sin(phi/2.0)*math.sin(theta/2.0)*math.cos(psi/2.0)
-
-#    return x,y,z,w
 
 class CarEnv(object):
     dt = 0.1 #s
@@ -350,10 +314,15 @@ class CarEnv(object):
             rotate_carxys.append([x,y])
 
 
-        self.p1 = Point(rotate_carxys[0][0] - self.origin_x, rotate_carxys[0][1] - self.origin_y)
-        self.p2 = Point(rotate_carxys[1][0] - self.origin_x, rotate_carxys[1][1] - self.origin_y)
-        self.p3 = Point(rotate_carxys[2][0] - self.origin_x, rotate_carxys[2][1] - self.origin_y)
-        self.p4 = Point(rotate_carxys[3][0] - self.origin_x, rotate_carxys[3][1] - self.origin_y)
+        #self.p1 = Point(rotate_carxys[0][0] - self.origin_x, rotate_carxys[0][1] - self.origin_y)
+        #self.p2 = Point(rotate_carxys[1][0] - self.origin_x, rotate_carxys[1][1] - self.origin_y)
+        #self.p3 = Point(rotate_carxys[2][0] - self.origin_x, rotate_carxys[2][1] - self.origin_y)
+        #self.p4 = Point(rotate_carxys[3][0] - self.origin_x, rotate_carxys[3][1] - self.origin_y)
+        self.p1 = Point(rotate_carxys[0][0], rotate_carxys[0][1])
+        self.p2 = Point(rotate_carxys[1][0], rotate_carxys[1][1])
+        self.p3 = Point(rotate_carxys[2][0], rotate_carxys[2][1])
+        self.p4 = Point(rotate_carxys[3][0], rotate_carxys[3][1])
+
 
         corners_list = []
         #corners_list.append([rotate_carxys[0][0] - self.origin_x, rotate_carxys[0][1] - self.origin_y, 0])
@@ -422,9 +391,8 @@ class CarEnv(object):
         a = np.random.uniform(*self.action_bound, size = 1)
         return a
 
-
     def get_goal(self):
-        #judge if get goal and set goal which has been getten as invalid
+        #judge if get goal and set goal which has been get as invalid
 
         is_get_goal = False
         goal_info_list_general = self.goal_info_list[0:-1]
