@@ -100,9 +100,9 @@ class CarEnv(object):
     lane_center_points_pub = rospy.Publisher("lane_center_topic", PointCloud2, queue_size = 10)
     goal_points_pub        = rospy.Publisher("goal_topic",        PointCloud2, queue_size = 10)
     corners_points_pub     = rospy.Publisher("car_corners_topic", PointCloud2, queue_size = 10)
-    car_location_pub       = rospy.Publisher("car_position",      Marker, queue_size=10)
+    car_location_pub       = rospy.Publisher("car_position",      Marker,      queue_size=100)
 
-    rate = rospy.Rate(50)
+    rate = rospy.Rate(10)
 
     ## define variables
     lane_pub    = PointCloud2()
@@ -117,7 +117,7 @@ class CarEnv(object):
     #origin_x = 429704.997 
     #origin_y = 4414368.584
     origin_z = 58.315
-    origin_heading = 192.643
+    origin_heading = 192.643 + 50
     origin_roll    = 0.0
     origin_pitch   = 0.0
 
@@ -152,8 +152,8 @@ class CarEnv(object):
         self.marker_car.scale.y = 1.841
         self.marker_car.scale.z = 1.740
         self.marker_car.action  = Marker.MODIFY
-        self.marker_car.pose.position.x = self.car_info[0] #- self.origin_x
-        self.marker_car.pose.position.y = self.car_info[1] #- self.origin_y
+        self.marker_car.pose.position.x = self.car_info[0] #
+        self.marker_car.pose.position.y = self.car_info[1] #
         self.marker_car.pose.position.z = 0.0
         #q_x, q_y, q_z, q_w = rpy2q( 0.0, self.car_info[2]*180/np.pi, 0.0)
         quaternion = quaternion_from_euler(self.car_info[2]*180/np.pi, 0.0, 0.0, axes = "sxyz")
@@ -165,7 +165,7 @@ class CarEnv(object):
         self.marker_car.color.g = 1.0
         self.marker_car.color.b = 0.0
         self.marker_car.color.a = 1
-        self.marker_car.lifetime = rospy.Duration(0.5)
+        self.marker_car.lifetime = rospy.Duration(1)
 
 
         # import and publish vector map by using pointclouds
@@ -307,8 +307,6 @@ class CarEnv(object):
         self.car_info[:2] = self.car_info[:2] + \
                             self.speed*self.dt*np.array([np.cos(self.car_info[2]), np.sin(self.car_info[2])])
 
-        #state = self.car_info[:3]
-
         carx, cary, car_heading, carwidth, carlength = self.car_info
 
         car_4_points = \
@@ -393,6 +391,7 @@ class CarEnv(object):
         #self.car_info[:5] = self.origin_car_info[0:5]
         #print(self.origin_car_info)
         self.__init__()
+        rospy.loginfo("--------------------------------------------------------------------------")
         rospy.loginfo("Reset Now")
         return self._get_state()
 
@@ -408,7 +407,6 @@ class CarEnv(object):
 
     def get_goal(self):
         #judge if get goal and set goal which has been get as invalid
-
         is_get_goal = False
         goal_info_list_general = self.goal_info_list[0:-1]
         for goal in goal_info_list_general:
@@ -419,13 +417,13 @@ class CarEnv(object):
         is_get_final_goal = False
         is_get_final_goal = pointInRectangle(self.p1, self.p2, self.p3, self.p4,  \
                             Point(self.goal_info_list[-1][0], self.goal_info_list[-1][1]))
-        #if is_get_final_goal:
-        #    rospy.loginfo("Get Final Goal!")
-        #    self.terminator = True
-        #    return 1000
+        if is_get_final_goal:
+            rospy.loginfo("Get Final Goal !")
+            self.terminator = True
+            return 1000
 
         if is_get_goal:
-            rospy.loginfo("Get Goal!")
+            rospy.loginfo("Get Goal !")
             return 100
         else:
             return 0
