@@ -122,12 +122,12 @@ def pointInRectangle( A , B , C , D , m):
 #    return x,y,z,w
 
 class CarEnv(object):
-    dt = 0.1
-    lane_pub = PointCloud2()
-    border_pub = PointCloud2()
-    light_pub = PointCloud2()
+    dt = 0.1 #s
+    lane_pub    = PointCloud2()
+    border_pub  = PointCloud2()
+    light_pub   = PointCloud2()
     lane_center_pub = PointCloud2()
-    goal_pub = PointCloud2()
+    goal_pub    = PointCloud2()
     corners_pub = PointCloud2()
 
     origin_x = 429748.59446449956 
@@ -140,7 +140,7 @@ class CarEnv(object):
     origin_pitch   = 0.0
 
     #we can use gps data read from gps device to transport configure through launch file to init car position 
-    def __init__(self, discrete_action = False):
+    def __init__(self):
         self.is_collision = False
         self.speed = 30/3.6 #km/h
 
@@ -155,9 +155,9 @@ class CarEnv(object):
         init_y = 0
         width  = 2.3
         length = 5.0
-        car_heading = 192.643/180*np.pi #degree
+        car_heading = self.origin_heading#/180*np.pi #degree
         self.car_info = np.array([init_x, init_y, car_heading, width, length], dtype = np.float64)
-        self.p1 = self.p2 = self.p3 = self.p4 = Point(0,0)
+        self.p1 = self.p2 = self.p3 = self.p4 = Point(0, 0)
         self.action = [-1, 0, 1]
 
         #pub car position
@@ -203,7 +203,7 @@ class CarEnv(object):
         lane_center_path = "/home1/liumeng/Autoware/reinforcementdriving/data_yby_vector/lane_center.txt"
         goal_path   = "/home1/liumeng/Autoware/reinforcementdriving/data/goal_point.txt"
 
-        ### lane points
+        ### lane points #######################################################################################
         lane_op = open(lane_path, "r")
         lane_lines = lane_op.readlines()
         lane_lines = lane_lines[1:]
@@ -229,7 +229,7 @@ class CarEnv(object):
 
         lane_op.close()
 
-        ### border points
+        ### border points ######################################################################################
         border_op = open(border_path, "r")
         border_lines = border_op.readlines()
         border_lines = border_lines[1:]
@@ -251,7 +251,7 @@ class CarEnv(object):
         self.border_pub = pc2.create_cloud_xyz32(self.border_pub.header, self.border_info_list)
         border_op.close()
 
-        ### light points 
+        ### light points  #######################################################################################
         light_op = open(light_path, "r")
         light_lines = light_op.readlines()
         light_lines = light_lines[1:]
@@ -270,7 +270,7 @@ class CarEnv(object):
         self.light_pub = pc2.create_cloud_xyz32(self.light_pub.header, self.light_info_list)
         light_op.close()
 
-        ### lane center points
+        ### lane center points #################################################################################
         lane_center_op = open(lane_center_path, "r")
         lane_center_lines = lane_center_op.readlines()
         lane_center_lines = lane_center_lines[1:]
@@ -292,7 +292,7 @@ class CarEnv(object):
         self.lane_center_pub = pc2.create_cloud_xyz32(self.lane_center_pub.header, self.lane_center_info_list)
         lane_center_op.close()
  
-        ### goal points
+        ### goal points #######################################################################################
         goal_op = open(goal_path, "r")
         goal_lines = goal_op.readlines()
         goal_lines = goal_lines[1:]
@@ -314,19 +314,21 @@ class CarEnv(object):
         ##################################################
 
         #TD: init state_info
-        #self.state_info = [].flatten()
-
         self.state = self._get_state()
+
 
     def step(self, action):
         # using action/gps info to count car position
 
         action = np.clip(action, *self.action_bound)[0]
-        self.car_info[2] += action * np.pi/30
+        #self.car_info[2] += action * np.pi/30
+        self.car_info[2] += action / np.pi*30
+        #self.car_info[2] = self.car_info[2]%np.pi
+        rad = self.car_info[2]/180*np.pi
         self.car_info[:2] = self.car_info[:2] + \
                 self.speed*self.dt*np.array([np.cos(self.car_info[2]), np.sin(self.car_info[2])])
 
-        state = self.car_info[:3]
+        #state = self.car_info[:3]
 
         carx, cary, car_heading, carwidth, carlength = self.car_info
 
@@ -354,11 +356,15 @@ class CarEnv(object):
         self.p4 = Point(rotate_carxys[3][0] - self.origin_x, rotate_carxys[3][1] - self.origin_y)
 
         corners_list = []
-        corners_list.append([rotate_carxys[0][0] - self.origin_x, rotate_carxys[0][1] - self.origin_y, 0])
-        corners_list.append([rotate_carxys[1][0] - self.origin_x, rotate_carxys[1][1] - self.origin_y, 0])
-        corners_list.append([rotate_carxys[2][0] - self.origin_x, rotate_carxys[2][1] - self.origin_y, 0])
-        corners_list.append([rotate_carxys[3][0] - self.origin_x, rotate_carxys[3][1] - self.origin_y, 0])
-        print(corners_list)
+        #corners_list.append([rotate_carxys[0][0] - self.origin_x, rotate_carxys[0][1] - self.origin_y, 0])
+        #corners_list.append([rotate_carxys[1][0] - self.origin_x, rotate_carxys[1][1] - self.origin_y, 0])
+        #corners_list.append([rotate_carxys[2][0] - self.origin_x, rotate_carxys[2][1] - self.origin_y, 0])
+        #corners_list.append([rotate_carxys[3][0] - self.origin_x, rotate_carxys[3][1] - self.origin_y, 0])
+        #print(corners_list)
+        corners_list.append([rotate_carxys[0][0] , rotate_carxys[0][1] , 0])
+        corners_list.append([rotate_carxys[1][0] , rotate_carxys[1][1] , 0])
+        corners_list.append([rotate_carxys[2][0] , rotate_carxys[2][1] , 0])
+        corners_list.append([rotate_carxys[3][0] , rotate_carxys[3][1] , 0])
 
         header = std_msgs.msg.Header()
         header.stamp = rospy.Time.now()
@@ -379,29 +385,31 @@ class CarEnv(object):
 
 
         ### update car marker info
-        self.marker_car.pose.position.x = self.car_info[0] - self.origin_x
-        self.marker_car.pose.position.y = self.car_info[1] - self.origin_y
+        self.marker_car.pose.position.x = self.car_info[0] #- self.origin_x
+        self.marker_car.pose.position.y = self.car_info[1] #- self.origin_y
         self.marker_car.pose.position.z = 0.0
         #q_x, q_y, q_z, q_w = rpy2q( 0.0, self.car_info[2]*180/np.pi, 0.0)
         #roll, pitch, yaw
-        quaternion = quaternion_from_euler(self.car_info[2]*180/np.pi, 0.0, 0.0,axes = "sxyz" )
+        quaternion = quaternion_from_euler(self.car_info[2],0.0, 0.0, axes = "sxyz" )
         self.marker_car.pose.orientation.x = quaternion[0]
         self.marker_car.pose.orientation.y = quaternion[1]
         self.marker_car.pose.orientation.z = quaternion[2]
         self.marker_car.pose.orientation.w = quaternion[3]
 
-        #print(self.car_info)
-
+        print(self.car_info)
 
         self.state = self._get_state()
         return self.state, self.reward, self.terminator, self.car_info
 
-        # publish new position
 
 
     def reset(self):
-        self.terminal = False
-        self.car_info[:3] = np.array([*self.start_point, -np.pi/2])
+        #self.terminal = False
+        #self.car_info[:3] = np.array([*self.start_point, self.])
+        #self.car_info[:5] = self.origin_car_info[0:5]
+        #print(self.origin_car_info)
+        self.__init__()
+        rospy.loginfo("Reset Now")
         return self._get_state()
 
 
@@ -429,10 +437,12 @@ class CarEnv(object):
         is_get_final_goal = pointInRectangle(self.p1, self.p2, self.p3, self.p4,  \
                             Point(self.goal_info_list[-1][0], self.goal_info_list[-1][1]))
         if is_get_final_goal:
+            rospy.loginfo("Get Final Goal!")
             self.terminator = True
             return 1000
 
         if is_get_goal:
+            rospy.loginfo("Get Goal!")
             return 100
         else:
             return 0
@@ -445,9 +455,12 @@ class CarEnv(object):
             mark = pointInRectangle(self.p1, self.p2, self.p3, self.p4, Point(lane_point[0], lane_point[1]))
             if mark:
                 break
+
         if mark:
+            rospy.loginfo("Collision!")
             return True
         else:
+            rospy.loginfo("Not Collision!")
             return False
 
         for border_point in self.border_info_list:
@@ -456,8 +469,10 @@ class CarEnv(object):
                 break
 
         if mark:
+            rospy.loginfo("Collision!")
             return True
         else:
+            rospy.loginfo("Not Collision!")
             return False
 
 
@@ -477,22 +492,24 @@ if __name__ == '__main__':
 
     #x, y = BLH2XYZ(39.86186573, 116.17898188, 71.37)
     #print(x,y)
-    rate = rospy.Rate(60)
+    rate = rospy.Rate(10)
     #rospy.spin()
     for ep in range(20):
         s = env.reset()
-        for t in range(100000):
-            if not rospy.is_shutdown():
-                s, r, done, carinfo = env.step(env.sample_action())
+        done = False
+        #for t in range(100000):
+        while 1:
+            s, r, done, carinfo = env.step(env.sample_action())
 
-                lane_points_pub.publish(env.lane_pub)
-                border_points_pub.publish(env.border_pub)
-                light_points_pub.publish(env.light_pub)
-                lane_center_points_pub.publish(env.lane_center_pub)
-                goal_points_pub.publish(env.goal_pub)
-                car_location_pub.publish(env.marker_car)
-                corners_points_pub.publish(env.corners_pub)
-                rate.sleep()
+            lane_points_pub.publish(env.lane_pub)
+            border_points_pub.publish(env.border_pub)
+            light_points_pub.publish(env.light_pub)
+            lane_center_points_pub.publish(env.lane_center_pub)
+            goal_points_pub.publish(env.goal_pub)
+            car_location_pub.publish(env.marker_car)
+            corners_points_pub.publish(env.corners_pub)
+            rate.sleep()
+            rospy.loginfo(done)
 
             if done:
                 break
