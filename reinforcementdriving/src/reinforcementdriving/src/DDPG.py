@@ -30,14 +30,14 @@ log_dir = "./log/ddpg/"
 np.random.seed(1)
 tf.set_random_seed(1)
 
-MAX_EPISODES = 2000
-MAX_EP_STEPS = 1000
+MAX_EPISODES = 20000000
+MAX_EP_STEPS = 10000000
 LR_A  = 1e-4  # learning rate for actor
 LR_C  = 1e-4  # learning rate for critic
 GAMMA = 0.9   # reward discount
 REPLACE_ITER_A = 800
 REPLACE_ITER_C = 700
-MEMORY_CAPACITY = 1500
+MEMORY_CAPACITY = 10000000
 BATCH_SIZE = 16
 VAR_MIN = 1.0 #2.0  #0.1
 RENDER = True
@@ -266,9 +266,8 @@ def train():
         for t in range( MAX_EP_STEPS):
             if max_step == MAX_EP_STEPS or rospy.is_shutdown():
                break
- 
-            
-           # Added exploration noise
+
+            # Added exploration noise
             a = actor.choose_action(s)
             a = np.clip( np.random.normal(a, var), *ACTION_BOUND)    # add randomness to action selection for exploration
             s_, r, done, car_info = env.step(a)

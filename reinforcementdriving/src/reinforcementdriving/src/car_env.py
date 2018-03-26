@@ -10,8 +10,9 @@ import time, math
 import sensor_msgs.point_cloud2 as pc2
 from utils.transformations import quaternion_from_euler
 
-from sensor_msgs.msg import PointCloud2, PointField
+from sensor_msgs.msg   import PointCloud2, PointField
 from geometry_msgs.msg import Point32
+from geometry_msgs.msg import PoseStamped
 from visualization_msgs.msg import Marker
 
 
@@ -85,6 +86,7 @@ def pointInRectangle( A , B , C , D , m):
     else:
         return False
 
+
 rospy.init_node("reinforcement_Driving_node", anonymous = True)
 
 class CarEnv(object):
@@ -94,13 +96,15 @@ class CarEnv(object):
     dt = 0.1 #s
 
     # define  puber
-    lane_points_pub        = rospy.Publisher("lane_topic",        PointCloud2, queue_size = 10)
-    border_points_pub      = rospy.Publisher("border_topic",      PointCloud2, queue_size = 10)
-    light_points_pub       = rospy.Publisher("light_topic",       PointCloud2, queue_size = 10)
-    lane_center_points_pub = rospy.Publisher("lane_center_topic", PointCloud2, queue_size = 10)
-    goal_points_pub        = rospy.Publisher("goal_topic",        PointCloud2, queue_size = 10)
-    corners_points_pub     = rospy.Publisher("car_corners_topic", PointCloud2, queue_size = 10)
-    car_location_pub       = rospy.Publisher("car_position",      Marker,      queue_size=100)
+    lane_points_pub        = rospy.Publisher("/lane_topic",        PointCloud2, queue_size = 10)
+    border_points_pub      = rospy.Publisher("/border_topic",      PointCloud2, queue_size = 10)
+    light_points_pub       = rospy.Publisher("/light_topic",       PointCloud2, queue_size = 10)
+    lane_center_points_pub = rospy.Publisher("/lane_center_topic", PointCloud2, queue_size = 10)
+    goal_points_pub        = rospy.Publisher("/goal_topic",        PointCloud2, queue_size = 10)
+    corners_points_pub     = rospy.Publisher("/car_corners_topic", PointCloud2, queue_size = 10)
+    car_location_pub       = rospy.Publisher("/car_position",      Marker,      queue_size = 100)
+    pose_pub               = rospy.Publisher("/pose",              PoseStamped, queue_size = 10)
+
 
     rate = rospy.Rate(10)
 
@@ -111,20 +115,21 @@ class CarEnv(object):
     lane_center_pub = PointCloud2()
     goal_pub    = PointCloud2()
     corners_pub = PointCloud2()
+    pose_data   = PoseStamped()
 
     origin_x = 429748.59446449956 
     origin_y = 4414514.143970432
     #origin_x = 429704.997 
     #origin_y = 4414368.584
     origin_z = 58.315
-    origin_heading = 192.643 + 50
+    origin_heading = 192.643 +60
     origin_roll    = 0.0
     origin_pitch   = 0.0
 
     #we can use gps data read from gps device to transport configure through launch file to init car position 
     def __init__(self):
         self.is_collision = False
-        self.speed = 30/3.6 #km/h
+        self.speed = 10/3.6 #km/h
 
         self.terminator = False
         self.reward = 0
@@ -156,7 +161,7 @@ class CarEnv(object):
         self.marker_car.pose.position.y = self.car_info[1] #
         self.marker_car.pose.position.z = 0.0
         #q_x, q_y, q_z, q_w = rpy2q( 0.0, self.car_info[2]*180/np.pi, 0.0)
-        quaternion = quaternion_from_euler(self.car_info[2]*180/np.pi, 0.0, 0.0, axes = "sxyz")
+        quaternion = quaternion_from_euler(self.car_info[2], 0.0, 0.0, axes = "sxyz")
         self.marker_car.pose.orientation.x = quaternion[0]
         self.marker_car.pose.orientation.y = quaternion[1]
         self.marker_car.pose.orientation.z = quaternion[2]
@@ -166,6 +171,18 @@ class CarEnv(object):
         self.marker_car.color.b = 0.0
         self.marker_car.color.a = 1
         self.marker_car.lifetime = rospy.Duration(1)
+
+       
+        # Pose data
+        self.pose_data.header.stamp = rospy.Time.now()
+        self.pose_data.header.frame_id = "/map"
+        self.pose_data.pose.orientation.x = quaternion[0]
+        self.pose_data.pose.orientation.y = quaternion[1]
+        self.pose_data.pose.orientation.x = quaternion[2]
+        self.pose_data.pose.orientation.w = quaternion[3]
+        self.pose_data.pose.position.x    = self.car_info[0]
+        self.pose_data.pose.position.y    = self.car_info[1]
+        self.pose_data.pose.position.z    = 0.0
 
 
         # import and publish vector map by using pointclouds
@@ -302,7 +319,7 @@ class CarEnv(object):
 
         action = np.clip(action, *self.action_bound)[0]
         print("action:",action)
-        self.car_info[2] += action / np.pi*30  #
+        self.car_info[2] += action * np.pi/30.0/2  #  3 degree
         rad = self.car_info[2]  #rad
         self.car_info[:2] = self.car_info[:2] + \
                             self.speed*self.dt*np.array([np.cos(self.car_info[2]), np.sin(self.car_info[2])])
@@ -326,11 +343,6 @@ class CarEnv(object):
             #rotate_carxys += [x,y]
             rotate_carxys.append([x,y])
 
-
-        #self.p1 = Point(rotate_carxys[0][0] - self.origin_x, rotate_carxys[0][1] - self.origin_y)
-        #self.p2 = Point(rotate_carxys[1][0] - self.origin_x, rotate_carxys[1][1] - self.origin_y)
-        #self.p3 = Point(rotate_carxys[2][0] - self.origin_x, rotate_carxys[2][1] - self.origin_y)
-        #self.p4 = Point(rotate_carxys[3][0] - self.origin_x, rotate_carxys[3][1] - self.origin_y)
         self.p1 = Point(rotate_carxys[0][0], rotate_carxys[0][1])
         self.p2 = Point(rotate_carxys[1][0], rotate_carxys[1][1])
         self.p3 = Point(rotate_carxys[2][0], rotate_carxys[2][1])
@@ -338,11 +350,6 @@ class CarEnv(object):
 
 
         corners_list = []
-        #corners_list.append([rotate_carxys[0][0] - self.origin_x, rotate_carxys[0][1] - self.origin_y, 0])
-        #corners_list.append([rotate_carxys[1][0] - self.origin_x, rotate_carxys[1][1] - self.origin_y, 0])
-        #corners_list.append([rotate_carxys[2][0] - self.origin_x, rotate_carxys[2][1] - self.origin_y, 0])
-        #corners_list.append([rotate_carxys[3][0] - self.origin_x, rotate_carxys[3][1] - self.origin_y, 0])
-        #print(corners_list)
         corners_list.append([rotate_carxys[0][0] , rotate_carxys[0][1] , 0])
         corners_list.append([rotate_carxys[1][0] , rotate_carxys[1][1] , 0])
         corners_list.append([rotate_carxys[2][0] , rotate_carxys[2][1] , 0])
@@ -370,7 +377,6 @@ class CarEnv(object):
         self.marker_car.pose.position.x = self.car_info[0] #- self.origin_x
         self.marker_car.pose.position.y = self.car_info[1] #- self.origin_y
         self.marker_car.pose.position.z = 0.0
-        #q_x, q_y, q_z, q_w = rpy2q( 0.0, self.car_info[2]*180/np.pi, 0.0)
         #roll, pitch, yaw
         quaternion = quaternion_from_euler(self.car_info[2],0.0, 0.0, axes = "sxyz" )
         self.marker_car.pose.orientation.x = quaternion[0]
@@ -380,22 +386,29 @@ class CarEnv(object):
 
         print(self.car_info)
 
+        # pub Pose
+        self.pose_data.header.stamp = rospy.Time.now()
+        self.pose_data.pose.orientation.x = quaternion[0]
+        self.pose_data.pose.orientation.y = quaternion[1]
+        self.pose_data.pose.orientation.z = quaternion[2]
+        self.pose_data.pose.orientation.w = quaternion[3]
+        self.pose_data.pose.position.x    = self.car_info[0]
+        self.pose_data.pose.position.y    = self.car_info[1]
+        self.pose_data.pose.position.z    = 0.0
+
+
         self.state = self._get_state()
         return self.state, self.reward, self.terminator, self.car_info
 
 
 
     def reset(self):
-        #self.terminal = False
-        #self.car_info[:3] = np.array([*self.start_point, self.])
-        #self.car_info[:5] = self.origin_car_info[0:5]
-        #print(self.origin_car_info)
         self.__init__()
         rospy.loginfo("--------------------------------------------------------------------------")
         rospy.loginfo("Reset Now")
         return self._get_state()
 
-
+    # add the map, add the map's heading angle, current car's heading angle and theirs difference to state
     def _get_state(self):
         s = self.car_info[0:5].flatten()
         return s
@@ -456,6 +469,7 @@ class CarEnv(object):
             rospy.loginfo("Not Collision!")
             return False
 
+
     def render(self):
         self.lane_points_pub.publish(self.lane_pub)
         self.border_points_pub.publish(self.border_pub)
@@ -464,6 +478,7 @@ class CarEnv(object):
         self.goal_points_pub.publish(self.goal_pub)
         self.car_location_pub.publish(self.marker_car)
         self.corners_points_pub.publish(self.corners_pub)
+        self.pose_pub.publish(self.pose_data)
         self.rate.sleep()
 
 
