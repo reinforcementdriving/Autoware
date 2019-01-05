@@ -24,7 +24,7 @@ subs :
       - name : PointGrey Grasshoper 3 (USB1)
         desc : PointGrey Grasshoper 3 (USB1) desc sample
         probe: 'lsusb -d 1e10: > /dev/null'
-        run  : roslaunch pointgrey grasshopper3.launch
+        run  : roslaunch autoware_pointgrey_drivers grasshopper3.launch
         param: calibration_path_grasshopper3
         gui  :
           CalibrationFile :
@@ -37,7 +37,7 @@ subs :
       - name : PointGrey LadyBug 5
         desc : PointGrey LadyBug 5 desc sample
         probe:
-        run  : roslaunch pointgrey ladybug.launch
+        run  : roslaunch autoware_pointgrey_drivers ladybug.launch
         param: calibration_path_ladybug
         gui  :
           CalibrationFile :
@@ -367,6 +367,14 @@ params :
     topic : /config/voxel_grid_filter
     msg   : ConfigVoxelGridFilter
     vars  :
+    - name  : points_topic
+      desc  : input point topic to downsample
+      label : Points topic
+      kind  : str
+      v     : /points_raw
+      cmd_param :
+        dash        : ''
+        delim       : ':='
     - name  : voxel_leaf_size
       desc  : voxel_leaf_size desc sample
       label : Voxel Leaf Size
@@ -391,6 +399,14 @@ params :
     topic : /config/ring_filter
     msg   : ConfigRingFilter
     vars  :
+    - name  : points_topic
+      desc  : input point topic to downsample
+      label : Points topic
+      kind  : str
+      v     : /points_raw
+      cmd_param :
+        dash        : ''
+        delim       : ':='
     - name  : ring_div
       desc  : ring_div desc sample
       label : Ring Div
@@ -421,6 +437,14 @@ params :
     topic : /config/distance_filter
     msg   : ConfigDistanceFilter
     vars  :
+    - name  : points_topic
+      desc  : input point topic to downsample
+      label : Points topic
+      kind  : str
+      v     : /points_raw
+      cmd_param :
+        dash        : ''
+        delim       : ':='
     - name  : sample_num
       desc  : sample_num desc sample
       label : Sample Num
@@ -445,6 +469,14 @@ params :
     topic : /config/random_filter
     msg   : ConfigRandomFilter
     vars  :
+    - name  : points_topic
+      desc  : input point topic to downsample
+      label : Points topic
+      kind  : str
+      v     : /points_raw
+      cmd_param :
+        dash        : ''
+        delim       : ':='
     - name  : sample_num
       desc  : sample_num desc sample
       label : Sample Num
@@ -535,6 +567,14 @@ params :
         delim        : ':='
         only_enable  : True
         tail         : True
+    - name      : target_frame
+      desc      : Registers TF to this coordinate frame (default velodyne)
+      label     : target_frame
+      kind      : str
+      v         : 'velodyne'
+      cmd_param :
+        dash      : ''
+        delim     : ':='
     - name      : file
       desc      : file desc sample
       kind      : path
