@@ -1,51 +1,41 @@
 /*
- *  Copyright (c) 2018, Nagoya University
- *  All rights reserved.
+ * Copyright 2018-2019 Autoware Foundation. All rights reserved.
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are met:
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *  * Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- *  * Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- *  * Neither the name of Autoware nor the names of its
- *    contributors may be used to endorse or promote products derived from
- *    this software without specific prior written permission.
- *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- *  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- *  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- *  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- *  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- *  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- *  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 #include "naive_motion_predict.h"
 
-NaiveMotionPredict::NaiveMotionPredict() : nh_(), private_nh_("~")
+NaiveMotionPredict::NaiveMotionPredict() :
+  nh_(),
+  private_nh_("~"),
+  MAX_PREDICTION_SCORE_(1.0)
 {
   private_nh_.param<double>("interval_sec", interval_sec_, 0.1);
   private_nh_.param<int>("num_prediction", num_prediction_, 10);
   private_nh_.param<double>("sensor_height_", sensor_height_, 2.0);
+  private_nh_.param<double>("filter_out_close_object_threshold", filter_out_close_object_threshold_, 1.5);
 
-  predicted_objects_pub_ = nh_.advertise<autoware_msgs::DetectedObjectArray>("/prediction/objects", 1);
+  predicted_objects_pub_ = nh_.advertise<autoware_msgs::DetectedObjectArray>("/prediction/motion_predictor/objects", 1);
   predicted_paths_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/prediction/motion_predictor/path_markers", 1);
-  detected_objects_sub_ = nh_.subscribe("/detection/lidar_tracker/objects", 1, &NaiveMotionPredict::objectsCallback, this);
+  detected_objects_sub_ = nh_.subscribe("/detection/objects", 1, &NaiveMotionPredict::objectsCallback, this);
 }
 
 NaiveMotionPredict::~NaiveMotionPredict()
 {
 }
 
-void NaiveMotionPredict::initializeRosmarker(const std_msgs::Header& header, const geometry_msgs::Point& position,
+void NaiveMotionPredict::initializeROSmarker(const std_msgs::Header& header, const geometry_msgs::Point& position,
                                              const int object_id, visualization_msgs::Marker& predicted_line)
 {
   predicted_line.lifetime = ros::Duration(0.2);
@@ -70,14 +60,17 @@ void NaiveMotionPredict::initializeRosmarker(const std_msgs::Header& header, con
 }
 
 void NaiveMotionPredict::makePrediction(const autoware_msgs::DetectedObject& object,
-                                        std::vector<autoware_msgs::DetectedObject>& predicted_objects,
+                                        std::vector<autoware_msgs::DetectedObject>& predicted_objects_vec,
                                         visualization_msgs::Marker& predicted_line)
 {
   autoware_msgs::DetectedObject target_object = object;
-  initializeRosmarker(object.header, object.pose.position, object.id, predicted_line);
-  for (int i = 0; i < num_prediction_; i++)
+  target_object.score = MAX_PREDICTION_SCORE_;
+  initializeROSmarker(object.header, object.pose.position, object.id, predicted_line);
+  for (int ith_prediction = 0; ith_prediction < num_prediction_; ith_prediction++)
   {
     autoware_msgs::DetectedObject predicted_object = generatePredictedObject(target_object);
+    predicted_object.score = (-1/(interval_sec_*num_prediction_))*ith_prediction*interval_sec_ + MAX_PREDICTION_SCORE_;
+    predicted_objects_vec.push_back(predicted_object);
     target_object = predicted_object;
 
     geometry_msgs::Point p;
@@ -92,7 +85,7 @@ void NaiveMotionPredict::makePrediction(const autoware_msgs::DetectedObject& obj
 This package is a template package for more sopisticated prediction packages.
 Feel free to change/modify generatePredictedObject function
 and send pull request to Autoware
-*/
+ */
 
 autoware_msgs::DetectedObject NaiveMotionPredict::generatePredictedObject(const autoware_msgs::DetectedObject& object)
 {
@@ -188,24 +181,50 @@ void NaiveMotionPredict::objectsCallback(const autoware_msgs::DetectedObjectArra
 {
   autoware_msgs::DetectedObjectArray output;
   visualization_msgs::MarkerArray predicted_lines;
-  output.header = input.header;
+  output = input;
 
   for (const auto &object : input.objects)
   {
     std::vector<autoware_msgs::DetectedObject> predicted_objects_vec;
     visualization_msgs::Marker predicted_line;
-    makePrediction(object, predicted_objects_vec, predicted_line);
-
-    // concate to output object array
-    output.objects.insert(output.objects.end(), predicted_objects_vec.begin(), predicted_objects_vec.end());
-
-    // visualize only stably tracked objects
-    if (!object.pose_reliable)
+    if (isObjectValid(object))
     {
-      continue;
+      makePrediction(object, predicted_objects_vec, predicted_line);
+
+      // concate to output object array
+      output.objects.insert(output.objects.end(), predicted_objects_vec.begin(), predicted_objects_vec.end());
+
+      // visualize only stably tracked objects
+      if (!object.pose_reliable)
+      {
+        continue;
+      }
+      predicted_lines.markers.push_back(predicted_line);
     }
-    predicted_lines.markers.push_back(predicted_line);
   }
   predicted_objects_pub_.publish(output);
   predicted_paths_pub_.publish(predicted_lines);
 }
+
+bool NaiveMotionPredict::isObjectValid(const autoware_msgs::DetectedObject &in_object)
+{
+  double distance = std::sqrt(std::pow(in_object.pose.position.x,2)+
+                              std::pow(in_object.pose.position.y,2));
+  if (!in_object.valid ||
+      std::isnan(in_object.pose.orientation.x) ||
+      std::isnan(in_object.pose.orientation.y) ||
+      std::isnan(in_object.pose.orientation.z) ||
+      std::isnan(in_object.pose.orientation.w) ||
+      std::isnan(in_object.pose.position.x) ||
+      std::isnan(in_object.pose.position.y) ||
+      std::isnan(in_object.pose.position.z) ||
+      (distance <=  filter_out_close_object_threshold_)||
+      (in_object.dimensions.x <= 0) ||
+      (in_object.dimensions.y <= 0) ||
+      (in_object.dimensions.z <= 0)
+    )
+  {
+    return false;
+  }
+  return true;
+}//end IsObjectValid

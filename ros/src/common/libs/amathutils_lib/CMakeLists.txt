@@ -1,7 +1,10 @@
 cmake_minimum_required(VERSION 2.8.11)
 project(amathutils_lib) # autoware math utility
+
+find_package(autoware_build_flags REQUIRED)
+
+find_package(autoware_msgs REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
-        autoware_build_flags
         roscpp
         autoware_msgs
         )
@@ -17,6 +20,7 @@ catkin_package(
 include_directories(amathutils_lib
         include
         ${catkin_INCLUDE_DIRS}
+        ${autoware_msgs_INCLUDE_DIRS}
         )
 
 add_library(amathutils_lib
@@ -40,3 +44,9 @@ install(TARGETS amathutils_lib
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
         )
+        
+if(CATKIN_ENABLE_TESTING)
+  find_package(rostest REQUIRED)
+  add_rostest_gtest(amathutils-test test/test_amathutils_lib.test test/src/test_amathutils_lib.cpp)
+  target_link_libraries(amathutils-test ${catkin_LIBRARIES} amathutils_lib)
+endif()

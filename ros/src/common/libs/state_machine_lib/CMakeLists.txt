@@ -1,8 +1,11 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(state_machine_lib)
 
+
+find_package(autoware_build_flags REQUIRED)
+
+find_package(autoware_msgs REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
-        autoware_build_flags
         roscpp
         autoware_msgs
         )
@@ -18,6 +21,7 @@ SET(CMAKE_CXX_FLAGS "-O2 -g -Wall ${CMAKE_CXX_FLAGS}")
 include_directories(
         include
         ${catkin_INCLUDE_DIRS}
+        ${autoware_msgs_INCLUDE_DIRS}
 )
 
 add_library(state_machine_lib
@@ -27,6 +31,7 @@ add_library(state_machine_lib
 
 target_link_libraries(state_machine_lib
         ${catkin_LIBRARIES}
+        -lyaml-cpp
         )
 
 add_dependencies(${TARGET}

@@ -1,18 +1,28 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(waypoint_follower)
 
+
+find_package(autoware_build_flags REQUIRED)
+
+find_package(autoware_msgs REQUIRED)
+
+find_package(autoware_config_msgs REQUIRED)
+
+find_package(tablet_socket_msgs REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
-        autoware_build_flags
         roscpp
         std_msgs
         tf
         geometry_msgs
-        autoware_msgs
-        autoware_config_msgs
         pcl_ros
         pcl_conversions
         sensor_msgs
+        autoware_msgs
+        autoware_config_msgs
         tablet_socket_msgs
+        autoware_health_checker
+        rostest
+        rosunit
         )
 
 ################################################
@@ -35,6 +45,7 @@ catkin_package(
         pcl_conversions
         sensor_msgs
         tablet_socket_msgs
+        autoware_health_checker
 )
 
 ###########
@@ -45,6 +56,10 @@ SET(CMAKE_CXX_FLAGS "-O2 -g -Wall ${CMAKE_CXX_FLAGS}")
 
 include_directories(
         include
+        include/twist_gate
+        ${autoware_config_msgs_INCLUDE_DIRS}
+        ${autoware_msgs_INCLUDE_DIRS}
+        ${tablet_socket_msgs_INCLUDE_DIRS}
         ${catkin_INCLUDE_DIRS}
 )
 
@@ -72,7 +87,7 @@ target_link_libraries(twist_filter ${catkin_LIBRARIES})
 add_dependencies(twist_filter
         ${catkin_EXPORTED_TARGETS})
 
-add_executable(twist_gate nodes/twist_gate/twist_gate.cpp)
+add_executable(twist_gate nodes/twist_gate/twist_gate_node.cpp nodes/twist_gate/twist_gate.cpp)
 target_link_libraries(twist_gate ${catkin_LIBRARIES})
 add_dependencies(twist_gate
         ${catkin_EXPORTED_TARGETS})
@@ -90,3 +105,16 @@ install(DIRECTORY include/${PROJECT_NAME}/
 install(DIRECTORY launch/
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
         PATTERN ".svn" EXCLUDE)
+
+if (CATKIN_ENABLE_TESTING)
+    find_package(rostest REQUIRED)
+    add_rostest_gtest(test-twist_gate
+      test/test_twist_gate.test
+      test/src/test_twist_gate.cpp
+      nodes/twist_gate/twist_gate.cpp
+    )
+    add_dependencies(test-twist_gate
+      ${catkin_EXPORTED_TARGETS})
+    target_link_libraries(test-twist_gate
+      ${catkin_LIBRARIES})
+endif ()
